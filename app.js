@@ -33,11 +33,13 @@ const renderCards = (DataApi) => {
         dataPokemon.data.sprites.other['official-artwork'].front_default || dataPokemon.data.sprites.front_default;
       clone.querySelector('h2').textContent = `${id} - ${name}`;
       clone.querySelector('span').textContent = `Altura: ${height}" - Peso: ${weight}lbs`;
+
       abilities.forEach((ability) => {
         const li = document.createElement('li');
         li.textContent = ability.ability.name;
         clone.querySelector('.ability ul').appendChild(li);
       });
+
       types.forEach((type) => {
         const li = document.createElement('li');
         li.textContent = type.type.name;
@@ -45,6 +47,7 @@ const renderCards = (DataApi) => {
       });
       fragment.appendChild(clone);
     } else console.log(dataPokemon.error);
+
     cardsSection.appendChild(fragment);
   });
   btnPrev.disabled = !DataApi.previous;
@@ -67,25 +70,21 @@ const getPokemonTypes = async () => {
   try {
     const res = await fetch('https://pokeapi.co/api/v2/type/');
     const types = await res.json();
-    return { error: null, types };
+    types.results.forEach((type) => {
+      const option = document.createElement('option');
+      option.textContent = type.name.toUpperCase();
+      option.value = type.name;
+      selectTypes.appendChild(option);
+    });
   } catch (error) {
-    return { error: 'Error al obtener la lista de tipos' };
+    console.log('Error al obtener los tipos de pokemon');
   }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
   getListPokemons(urlAll);
   selectTypes.disabled = true;
-  getPokemonTypes().then((data) => {
-    if (!data.error) {
-      data.types.results.forEach((type) => {
-        const option = document.createElement('option');
-        option.textContent = type.name.toUpperCase();
-        option.value = type.name;
-        selectTypes.appendChild(option);
-      });
-    } else console.log('error', data.error);
-  });
+  getPokemonTypes();
 });
 
 select.addEventListener('change', (e) => {
