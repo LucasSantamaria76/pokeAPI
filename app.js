@@ -16,37 +16,44 @@ const getPokemonData = async (url) => {
     const data = await res.json();
     return { error: null, data };
   } catch (error) {
-    return { error: 'Error al obtener los datos del pokemon' };
+    return { error: 'Error al obtener los datos de la API' };
   }
 };
 
-const renderCards = (DataApi) => {
+const renderCards = async (DataApi) => {
   while (cardsSection.firstChild) cardsSection.removeChild(cardsSection.firstChild);
 
-  DataApi.results.forEach(async (pokemon) => {
-    const dataPokemon = await getPokemonData(pokemon.url);
-    if (!dataPokemon.error) {
-      const { id, name, abilities, types, height, weight } = dataPokemon.data;
+  const URLS = DataApi.results.map((pokemon) => pokemon.url);
+  next = DataApi.next;
+  prev = DataApi.previous;
 
-      const clone = templateCard.cloneNode(true);
-      clone.querySelector('img').src =
-        dataPokemon.data.sprites.other['official-artwork'].front_default || dataPokemon.data.sprites.front_default;
-      clone.querySelector('h2').textContent = `${id} - ${name}`;
-      clone.querySelector('span').textContent = `Altura: ${height}" - Peso: ${weight}lbs`;
+  const dataPokemon = await Promise.all(
+    URLS.map(async (url) => {
+      const next20 = await fetch(url);
+      return await next20.json();
+    })
+  );
 
-      abilities.forEach((ability) => {
-        const li = document.createElement('li');
-        li.textContent = ability.ability.name;
-        clone.querySelector('.ability ul').appendChild(li);
-      });
+  dataPokemon.forEach((pokemon) => {
+    const { id, name, abilities, types, height, weight, sprites } = pokemon;
 
-      types.forEach((type) => {
-        const li = document.createElement('li');
-        li.textContent = type.type.name;
-        clone.querySelector('.types ul').appendChild(li);
-      });
-      fragment.appendChild(clone);
-    } else console.log(dataPokemon.error);
+    const clone = templateCard.cloneNode(true);
+    clone.querySelector('img').src = sprites.other['official-artwork'].front_default || sprites.front_default;
+    clone.querySelector('h2').textContent = `${id} - ${name}`;
+    clone.querySelector('span').textContent = `Altura: ${height}" - Peso: ${weight}lbs`;
+
+    abilities.forEach((ability) => {
+      const li = document.createElement('li');
+      li.textContent = ability.ability.name;
+      clone.querySelector('.ability ul').appendChild(li);
+    });
+
+    types.forEach((type) => {
+      const li = document.createElement('li');
+      li.textContent = type.type.name;
+      clone.querySelector('.types ul').appendChild(li);
+    });
+    fragment.appendChild(clone);
 
     cardsSection.appendChild(fragment);
   });
@@ -58,8 +65,6 @@ const getListPokemons = async (url) => {
   try {
     const res = await fetch(url);
     const data = await res.json();
-    next = data.next;
-    prev = data.previous;
     renderCards(data);
   } catch (error) {
     consoñe.log('Error al obtener la lista de pokemons');
@@ -89,20 +94,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 select.addEventListener('change', (e) => {
   selectTypes.disabled = e.target.value !== 'types';
-  select.value !== 'types' && getListPokemons(urlAll);
+  if (select.value !== 'types') getListPokemons(urlAll);
 });
 
-selectTypes.addEventListener('change', (e) => {
-  getPokemonData(`https://pokeapi.co/api/v2/type/${selectTypes.value}/`).then((data) => {
-    if (!data.error) {
-      const dataObj = {
-        results: data.data.pokemon.map((pokemon) => pokemon.pokemon),
-        next: null,
-        previous: null,
-      };
-      renderCards(dataObj);
-    } else console.log('error', data.error);
-  });
+selectTypes.addEventListener('change', async (e) => {
+  const dataType = await getPokemonData(`https://pokeapi.co/api/v2/type/${selectTypes.value}/`);
+  if (!dataType.error) {
+    const dataObj = {
+      results: dataType.data.pokemon.map((pokemon) => pokemon.pokemon),
+      next: null,
+      previous: null,
+    };
+    renderCards(dataObj);
+  } else console.log('error', data.error);
 });
 
 btnPrev.addEventListener('click', () => getListPokemons(prev));
